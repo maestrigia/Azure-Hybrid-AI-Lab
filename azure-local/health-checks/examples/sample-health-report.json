@@ -1,0 +1,82 @@
+{
+  "Metadata": {
+    "SchemaVersion": "2.0",
+    "Generated": "2026-09-18T09:30:00.0000000Z",
+    "Computer": "AZLOCAL-NODE01",
+    "PowerShellVersion": "5.1"
+  },
+  "Cluster": {
+    "Information": {
+      "Name": "AZLOCAL-CLUSTER",
+      "Domain": "lab.example",
+      "QuorumType": "Majority",
+      "NodeCount": 1,
+      "Topology": "SingleNode"
+    },
+    "Nodes": [
+      {
+        "Name": "AZLOCAL-NODE01",
+        "State": "Up"
+      }
+    ],
+    "Groups": [
+      {
+        "Name": "Cluster Group",
+        "State": "Online",
+        "OwnerNode": "AZLOCAL-NODE01"
+      },
+      {
+        "Name": "SDDC Group",
+        "State": "Online",
+        "OwnerNode": "AZLOCAL-NODE01"
+      }
+    ],
+    "Resources": [
+      {
+        "Name": "Cluster Name",
+        "State": "Online",
+        "OwnerGroup": "Cluster Group",
+        "ResourceType": "Network Name"
+      },
+      {
+        "Name": "Azure Stack HCI Health Service",
+        "State": "Online",
+        "OwnerGroup": "Azure Stack HCI Health Service Cluster Group",
+        "ResourceType": "Generic Service"
+      }
+    ],
+    "SharedVolumes": [
+      {
+        "Name": "Cluster Virtual Disk (Infrastructure_1)",
+        "State": "Online",
+        "OwnerNode": "AZLOCAL-NODE01"
+      },
+      {
+        "Name": "Cluster Virtual Disk (UserStorage_1)",
+        "State": "Online",
+        "OwnerNode": "AZLOCAL-NODE01"
+      }
+    ]
+  },
+  "AzureLocal": {
+    "SolutionUpdates": [
+      {
+        "DisplayName": "Example Cumulative Update",
+        "Version": "12.x.x.x",
+        "State": "Installed"
+      },
+      {
+        "DisplayName": "Example Feature Update",
+        "Version": "12.x.x.x",
+        "State": "Ready"
+      }
+    ],
+    "EnvironmentHealth": [
+      {
+        "State": "UpdateAvailable",
+        "HealthState": "Success",
+        "HealthCheckDate": "2026-09-17T13:00:00.0000000Z"
+      }
+    ]
+  }
+}
