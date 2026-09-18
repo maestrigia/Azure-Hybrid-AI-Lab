@@ -121,6 +121,6 @@ Invoke-HealthCheck -Name "Azure Local Environment Health" -Command {
 
 Write-Section "Health Check Completed"
 
-Write-Host "Review failed, offline, or degraded components before proceeding"
-Write-Host "with deeper troubleshooting."
+Write-Host "Review the collected information and investigate unexpected"
+Write-Host "or degraded states before proceeding with deeper troubleshooting."
 Write-Host ""
