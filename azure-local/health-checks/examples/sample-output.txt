@@ -1,0 +1,46 @@
+Azure Local Health Summary
+Generated: 2026-09-18 10:00:00
+Computer : AZLOCAL-NODE01
+PowerShell: 5.1.x
+
+============================================================
+Cluster Nodes
+============================================================
+
+Name             State
+----             -----
+AZLOCAL-NODE01   Up
+
+============================================================
+Cluster Shared Volumes
+============================================================
+
+Name                                      State    OwnerNode
+----                                      -----    ---------
+Cluster Virtual Disk (Infrastructure_1)   Online   AZLOCAL-NODE01
+Cluster Virtual Disk (UserStorage_1)      Online   AZLOCAL-NODE01
+
+============================================================
+Azure Local Solution Updates
+============================================================
+
+DisplayName               Version          State
+-----------               -------          -----
+Cumulative Update         12.x.x.x         Installed
+Feature Update            12.x.x.x         Installed
+Cumulative Update         12.x.x.x         Ready
+
+============================================================
+Azure Local Environment Health
+============================================================
+
+State              HealthState
+-----              -----------
+UpdateAvailable    Success
+
+============================================================
+Health Check Completed
+============================================================
+
+Review the collected information and investigate unexpected
+or degraded states before proceeding with deeper troubleshooting.
