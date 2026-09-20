@@ -1,0 +1,49 @@
+{
+  "overall_assessment": "The supplied report shows the single node in Up state, cluster groups and listed resources Online, shared volumes Online, and an environment health check with HealthState Success. An update is available. No degraded conditions are evident in the supplied report, but the report does not provide enough data to assess the entire Azure Local environment.",
+  "findings": [
+    {
+      "category": "Cluster and node state",
+      "severity": "Informational",
+      "title": "Cluster components report operational states",
+      "evidence": [
+        "Cluster topology is SingleNode with NodeCount 1.",
+        "AZLOCAL-NODE01 state is Up.",
+        "Cluster Group and SDDC Group state are Online.",
+        "Cluster Name and Azure Stack HCI Health Service resources state are Online.",
+        "Both listed shared volumes state are Online."
+      ],
+      "recommendation": "Continue monitoring the reported node, groups, resources, and shared-volume states during normal operations."
+    },
+    {
+      "category": "Solution updates",
+      "severity": "Advisory",
+      "title": "A feature update is reported as Ready",
+      "evidence": [
+        "Example Cumulative Update state is Installed.",
+        "Example Feature Update state is Ready."
+      ],
+      "recommendation": "Review the available feature update for applicability, prerequisites, and an appropriate maintenance window before deployment."
+    },
+    {
+      "category": "Environment health",
+      "severity": "Advisory",
+      "title": "Environment health reports an available update with successful health state",
+      "evidence": [
+        "EnvironmentHealth State is UpdateAvailable.",
+        "EnvironmentHealth HealthState is Success.",
+        "HealthCheckDate is 2026-09-17T13:00:00.0000000Z."
+      ],
+      "recommendation": "Validate the current update status and rerun the relevant health checks after any update action."
+    }
+  ],
+  "recommended_next_checks": [
+    "Review the detailed applicability and prerequisite information for the Ready feature update.",
+    "Run or obtain a current health report after update evaluation or deployment.",
+    "Validate health areas not represented in this report, such as networking, storage capacity and performance, virtual machines, and connectivity."
+  ],
+  "additional_data_required": [
+    "Detailed health-check results and error or warning details, if any.",
+    "Networking, storage, virtual-machine, and connectivity health evidence for a broader environment assessment.",
+    "Update applicability, prerequisite, and deployment status details."
+  ]
+}
