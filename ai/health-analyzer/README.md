@@ -152,6 +152,61 @@ If authentication fails with an Azure CLI credential message asking you to sign 
 az login
 ```
 
+## Microsoft Foundry Setup
+
+Before running the analyzer, create or use an existing Microsoft Foundry project in your Azure subscription.
+
+### 1. Create a Foundry resource and project
+
+Create a Microsoft Foundry resource and a project that will host the model deployment used by the analyzer.
+
+The analyzer does not require direct access from Foundry to the Azure Local environment. Only the structured health report is sent to the configured model endpoint.
+
+### 2. Deploy a compatible model
+
+From the Foundry model catalog, deploy a model that supports the OpenAI Responses API and structured outputs.
+
+Note the deployment name. This value will later be configured as:
+
+`FOUNDRY_DEPLOYMENT`
+
+The analyzer is intentionally not tied to a hard-coded model deployment.
+
+### 3. Configure Microsoft Entra ID access
+
+Ensure that the identity running the analyzer has the `Foundry User` role on the Foundry resource.
+
+For local development, authenticate the Azure CLI with:
+
+```powershell
+az login
+az account show
+```
+
+The analyzer uses `DefaultAzureCredential` and Microsoft Entra ID authentication rather than storing an API key in the source code.
+
+### 4. Retrieve the Foundry endpoint
+
+Retrieve the OpenAI-compatible endpoint associated with your Foundry resource.
+
+The endpoint follows this general format:
+
+```text
+https://<your-resource>.services.ai.azure.com/openai/v1
+```
+
+This value will later be configured as:
+
+`FOUNDRY_ENDPOINT`
+
+Do not commit resource-specific endpoints, credentials, access tokens, subscription IDs, or tenant IDs to the repository.
+
+
+### Official Microsoft documentation
+
+- [Create Microsoft Foundry resources and a project](https://learn.microsoft.com/en-us/azure/foundry/tutorials/quickstart-create-foundry-resources)
+- [Microsoft Foundry RBAC and roles](https://learn.microsoft.com/en-us/azure/foundry/concepts/rbac-foundry)
+
 ## Foundry Configuration
 
 The analyzer reads the Foundry configuration from environment variables.
