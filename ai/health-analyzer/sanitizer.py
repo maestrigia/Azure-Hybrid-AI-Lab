@@ -1,6 +1,7 @@
 import copy
 import ipaddress
 import re
+import uuid
 from typing import Any
 
 
@@ -17,6 +18,16 @@ class ReportSanitizer:
         r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])"
     )
 
+    _GUID_CANDIDATE_PATTERN = re.compile(
+        r"(?<![0-9A-Fa-f])"
+        r"[0-9A-Fa-f]{8}-"
+        r"[0-9A-Fa-f]{4}-"
+        r"[0-9A-Fa-f]{4}-"
+        r"[0-9A-Fa-f]{4}-"
+        r"[0-9A-Fa-f]{12}"
+        r"(?![0-9A-Fa-f])"
+    )
+
     def __init__(self) -> None:
         self._replacements: dict[str, str] = {}
 
@@ -27,6 +38,7 @@ class ReportSanitizer:
         self._resource_counter = 0
         self._volume_counter = 0
         self._ip_counter = 0
+        self._guid_counter = 0
 
     def sanitize(self, report: dict[str, Any]) -> dict[str, Any]:
         """
@@ -37,6 +49,7 @@ class ReportSanitizer:
 
         self._discover_identifiers(sanitized)
         self._discover_ipv4_addresses(sanitized)
+        self._discover_guids(sanitized)
 
         return self._replace_recursive(sanitized)
 
@@ -240,8 +253,6 @@ class ReportSanitizer:
                     f"VOLUME-{self._volume_counter:03d}",
                 )
 
-
-
     def _discover_ipv4_addresses(
         self,
         value: Any,
@@ -282,6 +293,45 @@ class ReportSanitizer:
             self._add_replacement(
                 candidate,
                 f"IP-{self._ip_counter:03d}",
+            )
+
+    def _discover_guids(
+        self,
+        value: Any,
+    ) -> None:
+        """
+        Recursively discover GUIDs in string values.
+        """
+
+        if isinstance(value, dict):
+            for item in value.values():
+                self._discover_guids(item)
+            return
+
+        if isinstance(value, list):
+            for item in value:
+                self._discover_guids(item)
+            return
+
+        if not isinstance(value, str):
+            return
+
+        for match in self._GUID_CANDIDATE_PATTERN.finditer(value):
+            candidate = match.group(0)
+
+            try:
+                uuid.UUID(candidate)
+            except ValueError:
+                continue
+
+            if candidate in self._replacements:
+                continue
+
+            self._guid_counter += 1
+
+            self._add_replacement(
+                candidate,
+                f"GUID-{self._guid_counter:03d}",
             )
 
     def _replace_string(

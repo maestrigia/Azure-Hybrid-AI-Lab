@@ -237,6 +237,7 @@ def test_sensitive_identifiers_are_not_present_in_output():
     for value in sensitive_values:
         assert value.lower() not in serialized.lower()
 
+
 def test_ipv4_addresses_are_pseudonymized_consistently():
     report = build_test_report()
 
@@ -260,5 +261,43 @@ def test_ipv4_addresses_are_pseudonymized_consistently():
     assert "IP-002" in diagnostic_message
 
     serialized = str(sanitized)
+
     assert "10.20.30.40" not in serialized
     assert "10.20.30.41" not in serialized
+
+
+def test_guids_are_pseudonymized_consistently():
+    report = build_test_report()
+
+    first_guid = "550e8400-e29b-41d4-a716-446655440000"
+    second_guid = "123e4567-e89b-12d3-a456-426614174000"
+
+    report["Metadata"]["CorrelationId"] = first_guid
+    report["Cluster"]["Resources"][0]["ActivityId"] = second_guid
+    report["Cluster"]["Resources"][0]["DiagnosticMessage"] = (
+        f"Correlation {first_guid} references activity {second_guid}"
+    )
+
+    sanitized = sanitize_report(report)
+
+    assert (
+        sanitized["Metadata"]["CorrelationId"]
+        == "GUID-001"
+    )
+
+    assert (
+        sanitized["Cluster"]["Resources"][0]["ActivityId"]
+        == "GUID-002"
+    )
+
+    diagnostic_message = sanitized["Cluster"]["Resources"][0][
+        "DiagnosticMessage"
+    ]
+
+    assert "GUID-001" in diagnostic_message
+    assert "GUID-002" in diagnostic_message
+
+    serialized = str(sanitized)
+
+    assert first_guid not in serialized
+    assert second_guid not in serialized
