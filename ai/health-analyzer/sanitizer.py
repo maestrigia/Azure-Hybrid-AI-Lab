@@ -28,6 +28,28 @@ class ReportSanitizer:
         r"(?![0-9A-Fa-f])"
     )
 
+    _EMAIL_CANDIDATE_PATTERN = re.compile(
+        r"(?<![A-Za-z0-9._%+-])"
+        r"[A-Za-z0-9._%+-]+@"
+        r"[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+        r"(?![A-Za-z0-9._%+-])",
+        re.IGNORECASE,
+    )
+
+    _AZURE_RESOURCE_ID_PATTERN = re.compile(
+        r"/subscriptions/"
+        r"[0-9A-Fa-f]{8}-"
+        r"[0-9A-Fa-f]{4}-"
+        r"[0-9A-Fa-f]{4}-"
+        r"[0-9A-Fa-f]{4}-"
+        r"[0-9A-Fa-f]{12}"
+        r"/resourceGroups/"
+        r"[^/\s\"']+"
+        r"/providers/"
+        r"[^,\s\"']+",
+        re.IGNORECASE,
+    )
+
     def __init__(self) -> None:
         self._replacements: dict[str, str] = {}
 
@@ -39,6 +61,8 @@ class ReportSanitizer:
         self._volume_counter = 0
         self._ip_counter = 0
         self._guid_counter = 0
+        self._identity_counter = 0
+        self._azure_resource_id_counter = 0
 
     def sanitize(self, report: dict[str, Any]) -> dict[str, Any]:
         """
@@ -48,6 +72,15 @@ class ReportSanitizer:
         sanitized = copy.deepcopy(report)
 
         self._discover_identifiers(sanitized)
+
+        # Discover complete Azure resource IDs before their embedded
+        # subscription GUIDs so the full identifier takes precedence.
+        self._discover_azure_resource_ids(sanitized)
+
+        # Discover complete email/UPN-style identities before domain
+        # replacement is applied.
+        self._discover_email_identities(sanitized)
+
         self._discover_ipv4_addresses(sanitized)
         self._discover_guids(sanitized)
 
@@ -82,9 +115,7 @@ class ReportSanitizer:
         organization, workload, or customer-specific information.
         """
 
-        # --------------------------------------------------------------
         # Metadata / host identity
-        # --------------------------------------------------------------
         metadata = report.get("Metadata", {})
 
         if isinstance(metadata, dict):
@@ -97,17 +128,12 @@ class ReportSanitizer:
                     f"HOST-{self._host_counter:03d}",
                 )
 
-        # --------------------------------------------------------------
-        # Cluster
-        # --------------------------------------------------------------
         cluster = report.get("Cluster", {})
 
         if not isinstance(cluster, dict):
             return
 
-        # --------------------------------------------------------------
         # Cluster identity
-        # --------------------------------------------------------------
         information = cluster.get("Information", {})
 
         if isinstance(information, dict):
@@ -129,9 +155,7 @@ class ReportSanitizer:
                     f"DOMAIN-{self._domain_counter:03d}",
                 )
 
-        # --------------------------------------------------------------
         # Cluster nodes
-        # --------------------------------------------------------------
         nodes = cluster.get("Nodes", [])
 
         if isinstance(nodes, list):
@@ -154,9 +178,7 @@ class ReportSanitizer:
                     f"HOST-{self._host_counter:03d}",
                 )
 
-        # --------------------------------------------------------------
         # Cluster groups
-        # --------------------------------------------------------------
         groups = cluster.get("Groups", [])
 
         if isinstance(groups, list):
@@ -179,9 +201,7 @@ class ReportSanitizer:
                     f"GROUP-{self._group_counter:03d}",
                 )
 
-        # --------------------------------------------------------------
         # Cluster resources and their owner-group references
-        # --------------------------------------------------------------
         resources = cluster.get("Resources", [])
 
         if isinstance(resources, list):
@@ -190,18 +210,8 @@ class ReportSanitizer:
                     continue
 
                 # OwnerGroup may reference a cluster group that is not
-                # included in Cluster.Groups. Discover the complete
-                # OwnerGroup value before resource names are registered.
-                #
-                # This prevents partial replacements such as:
-                #
-                # "Azure Stack HCI Health Service Cluster Group"
-                #
-                # becoming:
-                #
-                # "RESOURCE-002 GROUP-001"
-                #
-                # instead of a single pseudonymous group identifier.
+                # included in Cluster.Groups. Discover the complete value
+                # before resource names are registered.
                 owner_group = resource.get("OwnerGroup")
 
                 if (
@@ -228,9 +238,7 @@ class ReportSanitizer:
                         f"RESOURCE-{self._resource_counter:03d}",
                     )
 
-        # --------------------------------------------------------------
         # Cluster Shared Volumes
-        # --------------------------------------------------------------
         shared_volumes = cluster.get("SharedVolumes", [])
 
         if isinstance(shared_volumes, list):
@@ -252,6 +260,77 @@ class ReportSanitizer:
                     volume_name,
                     f"VOLUME-{self._volume_counter:03d}",
                 )
+
+    def _discover_azure_resource_ids(
+        self,
+        value: Any,
+    ) -> None:
+        """
+        Recursively discover Azure resource IDs in string values.
+        """
+
+        if isinstance(value, dict):
+            for item in value.values():
+                self._discover_azure_resource_ids(item)
+            return
+
+        if isinstance(value, list):
+            for item in value:
+                self._discover_azure_resource_ids(item)
+            return
+
+        if not isinstance(value, str):
+            return
+
+        for match in self._AZURE_RESOURCE_ID_PATTERN.finditer(value):
+            candidate = match.group(0)
+
+            if candidate in self._replacements:
+                continue
+
+            self._azure_resource_id_counter += 1
+
+            self._add_replacement(
+                candidate,
+                (
+                    "AZURE-RESOURCE-ID-"
+                    f"{self._azure_resource_id_counter:03d}"
+                ),
+            )
+
+    def _discover_email_identities(
+        self,
+        value: Any,
+    ) -> None:
+        """
+        Recursively discover email/UPN-style identities in string values.
+        """
+
+        if isinstance(value, dict):
+            for item in value.values():
+                self._discover_email_identities(item)
+            return
+
+        if isinstance(value, list):
+            for item in value:
+                self._discover_email_identities(item)
+            return
+
+        if not isinstance(value, str):
+            return
+
+        for match in self._EMAIL_CANDIDATE_PATTERN.finditer(value):
+            candidate = match.group(0)
+
+            if candidate in self._replacements:
+                continue
+
+            self._identity_counter += 1
+
+            self._add_replacement(
+                candidate,
+                f"IDENTITY-{self._identity_counter:03d}",
+            )
 
     def _discover_ipv4_addresses(
         self,
@@ -369,6 +448,7 @@ class ReportSanitizer:
         """
         Recursively apply identifier replacements throughout the report.
         """
+
         if isinstance(value, dict):
             return {
                 key: self._replace_recursive(item)

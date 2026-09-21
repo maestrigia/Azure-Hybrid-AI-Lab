@@ -90,26 +90,10 @@ def test_identifiers_are_pseudonymized():
     sanitized = sanitize_report(report)
 
     assert sanitized["Metadata"]["Computer"] == "HOST-001"
-
-    assert (
-        sanitized["Cluster"]["Information"]["Name"]
-        == "CLUSTER-001"
-    )
-
-    assert (
-        sanitized["Cluster"]["Information"]["Domain"]
-        == "DOMAIN-001"
-    )
-
-    assert (
-        sanitized["Cluster"]["Nodes"][0]["Name"]
-        == "HOST-001"
-    )
-
-    assert (
-        sanitized["Cluster"]["Nodes"][1]["Name"]
-        == "HOST-002"
-    )
+    assert sanitized["Cluster"]["Information"]["Name"] == "CLUSTER-001"
+    assert sanitized["Cluster"]["Information"]["Domain"] == "DOMAIN-001"
+    assert sanitized["Cluster"]["Nodes"][0]["Name"] == "HOST-001"
+    assert sanitized["Cluster"]["Nodes"][1]["Name"] == "HOST-002"
 
 
 def test_identifier_references_remain_consistent():
@@ -121,21 +105,9 @@ def test_identifier_references_remain_consistent():
     resources = sanitized["Cluster"]["Resources"]
 
     assert groups[0]["Name"] == "GROUP-001"
-
-    assert (
-        resources[0]["OwnerGroup"]
-        == "GROUP-001"
-    )
-
-    assert (
-        groups[0]["OwnerNode"]
-        == "HOST-001"
-    )
-
-    assert (
-        groups[1]["OwnerNode"]
-        == "HOST-002"
-    )
+    assert resources[0]["OwnerGroup"] == "GROUP-001"
+    assert groups[0]["OwnerNode"] == "HOST-001"
+    assert groups[1]["OwnerNode"] == "HOST-002"
 
 
 def test_unlisted_owner_group_is_replaced_as_complete_identity():
@@ -145,15 +117,8 @@ def test_unlisted_owner_group_is_replaced_as_complete_identity():
 
     resources = sanitized["Cluster"]["Resources"]
 
-    assert (
-        resources[1]["OwnerGroup"]
-        == "GROUP-003"
-    )
-
-    assert (
-        resources[1]["OwnerGroup"]
-        != "RESOURCE-002 GROUP-001"
-    )
+    assert resources[1]["OwnerGroup"] == "GROUP-003"
+    assert resources[1]["OwnerGroup"] != "RESOURCE-002 GROUP-001"
 
 
 def test_resource_and_volume_names_are_pseudonymized():
@@ -166,7 +131,6 @@ def test_resource_and_volume_names_are_pseudonymized():
 
     assert resources[0]["Name"] == "RESOURCE-001"
     assert resources[1]["Name"] == "RESOURCE-002"
-
     assert volumes[0]["Name"] == "VOLUME-001"
 
 
@@ -243,6 +207,7 @@ def test_ipv4_addresses_are_pseudonymized_consistently():
 
     report["Cluster"]["Nodes"][0]["ManagementAddress"] = "10.20.30.40"
     report["Cluster"]["Nodes"][1]["ManagementAddress"] = "10.20.30.41"
+
     report["Cluster"]["Resources"][0]["DiagnosticMessage"] = (
         "Connection from 10.20.30.40 to 10.20.30.41 succeeded"
     )
@@ -250,6 +215,7 @@ def test_ipv4_addresses_are_pseudonymized_consistently():
     sanitized = sanitize_report(report)
 
     nodes = sanitized["Cluster"]["Nodes"]
+
     diagnostic_message = sanitized["Cluster"]["Resources"][0][
         "DiagnosticMessage"
     ]
@@ -274,16 +240,14 @@ def test_guids_are_pseudonymized_consistently():
 
     report["Metadata"]["CorrelationId"] = first_guid
     report["Cluster"]["Resources"][0]["ActivityId"] = second_guid
+
     report["Cluster"]["Resources"][0]["DiagnosticMessage"] = (
         f"Correlation {first_guid} references activity {second_guid}"
     )
 
     sanitized = sanitize_report(report)
 
-    assert (
-        sanitized["Metadata"]["CorrelationId"]
-        == "GUID-001"
-    )
+    assert sanitized["Metadata"]["CorrelationId"] == "GUID-001"
 
     assert (
         sanitized["Cluster"]["Resources"][0]["ActivityId"]
@@ -301,3 +265,90 @@ def test_guids_are_pseudonymized_consistently():
 
     assert first_guid not in serialized
     assert second_guid not in serialized
+
+
+def test_email_identities_are_pseudonymized_consistently():
+    report = build_test_report()
+
+    first_identity = "admin@contoso.com"
+    second_identity = "operator@fabrikam.com"
+
+    report["Metadata"]["RequestedBy"] = first_identity
+    report["Cluster"]["Resources"][0]["Operator"] = second_identity
+
+    report["Cluster"]["Resources"][0]["DiagnosticMessage"] = (
+        f"Operation requested by {first_identity} "
+        f"and reviewed by {second_identity}"
+    )
+
+    sanitized = sanitize_report(report)
+
+    assert sanitized["Metadata"]["RequestedBy"] == "IDENTITY-001"
+
+    assert (
+        sanitized["Cluster"]["Resources"][0]["Operator"]
+        == "IDENTITY-002"
+    )
+
+    diagnostic_message = sanitized["Cluster"]["Resources"][0][
+        "DiagnosticMessage"
+    ]
+
+    assert "IDENTITY-001" in diagnostic_message
+    assert "IDENTITY-002" in diagnostic_message
+
+    serialized = str(sanitized)
+
+    assert first_identity not in serialized
+    assert second_identity not in serialized
+
+
+def test_azure_resource_ids_are_pseudonymized_as_complete_identifiers():
+    report = build_test_report()
+
+    subscription_id = "11111111-2222-3333-4444-555555555555"
+
+    resource_id = (
+        f"/subscriptions/{subscription_id}"
+        "/resourceGroups/rg-customer-production"
+        "/providers/Microsoft.Compute"
+        "/virtualMachines/customer-vm-01"
+    )
+
+    report["AzureLocal"]["AzureResourceId"] = resource_id
+
+    report["Cluster"]["Resources"][0]["DiagnosticMessage"] = (
+        f"Related Azure resource: {resource_id}"
+    )
+
+    sanitized = sanitize_report(report)
+
+    assert (
+        sanitized["AzureLocal"]["AzureResourceId"]
+        == "AZURE-RESOURCE-ID-001"
+    )
+
+    diagnostic_message = sanitized["Cluster"]["Resources"][0][
+        "DiagnosticMessage"
+    ]
+
+    assert "AZURE-RESOURCE-ID-001" in diagnostic_message
+
+    serialized = str(sanitized)
+
+    assert resource_id not in serialized
+    assert subscription_id not in serialized
+    assert "rg-customer-production" not in serialized
+    assert "customer-vm-01" not in serialized
+
+
+def test_invalid_ipv4_candidate_is_not_treated_as_ip_address():
+    report = build_test_report()
+
+    invalid_address = "999.999.999.999"
+
+    report["Metadata"]["DiagnosticValue"] = invalid_address
+
+    sanitized = sanitize_report(report)
+
+    assert sanitized["Metadata"]["DiagnosticValue"] == invalid_address
