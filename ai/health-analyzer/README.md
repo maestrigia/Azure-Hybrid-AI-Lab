@@ -2,9 +2,9 @@
 
 A lightweight AI-assisted analyzer for structured Azure Local health reports.
 
-The project combines deterministic health-data collection with evidence-grounded AI analysis using Microsoft Foundry.
+The project combines deterministic infrastructure evidence collection, privacy sanitization, and evidence-grounded AI analysis using Microsoft Foundry.
 
-The analyzer does not connect directly to an Azure Local cluster. It consumes a structured JSON health report generated separately by the Azure Local health-check collector.
+The analyzer does not connect directly to an Azure Local cluster. It consumes a structured JSON health report generated separately by the Azure Local health collector.
 
 ## Architecture
 
@@ -12,253 +12,131 @@ The analyzer does not connect directly to an Azure Local cluster. It consumes a 
 Azure Local
     |
     v
-PowerShell Health Collector
+Read-Only PowerShell Collector
     |
     v
 AzureLocalHealthSummary.json
     |
     v
-Python Health Analyzer
+Report Validation
+    |
+    v
+Privacy Sanitization
     |
     v
 Microsoft Foundry
     |
     v
-Structured HealthAnalysis JSON
+Structured HealthAnalysis
+    |
+    v
+Human Review
 ```
 
-The design intentionally separates data collection from AI interpretation.
+The design intentionally separates infrastructure data collection from AI interpretation.
 
-The PowerShell collector gathers deterministic evidence from the environment. The Python analyzer validates the report and sends the structured evidence to a Microsoft Foundry model for interpretation.
+The PowerShell collector gathers deterministic evidence from the environment.
+
+The Python application validates the supplied report and applies privacy sanitization before the report is submitted for AI-assisted analysis.
+
+Microsoft Foundry receives the sanitized report rather than the original uploaded report.
 
 ## Current Capabilities
 
-The analyzer currently:
+The analyzer currently supports:
 
-- Loads Azure Local health reports in JSON format.
+- Structured Azure Local JSON health reports
+- Top-level report validation
+- Schema-aware infrastructure identity pseudonymization
+- Pattern-based sensitive identifier discovery
+- Consistent pseudonymization across repeated references
+- IPv4 address pseudonymization
+- GUID pseudonymization
+- Email and UPN-style identity pseudonymization
+- Azure Resource ID pseudonymization
+- Microsoft Entra ID authentication
+- Microsoft Foundry model integration
+- Pydantic structured output
+- Controlled finding severity values
+- Evidence-oriented findings
+- Recommended next validation steps
+- Identification of additional data requirements
+- Command-line analysis
+- FastAPI web interface
+- Azure App Service hosting
+- Managed Identity authentication for the hosted application
+- Microsoft Entra ID protection for the web application
+- Automated privacy regression tests
+- GitHub Actions build, test, and deployment pipeline
 
-- Validates the expected top-level report structure.
+## Privacy Sanitization
 
-- Uses Microsoft Entra ID authentication.
+Infrastructure health reports can contain environment-specific identifiers.
 
-- Connects to a Microsoft Foundry model deployment.
+Before AI processing, the application creates a deep copy of the supplied report and pseudonymizes identifiers covered by the current sanitization rules.
 
-- Uses Pydantic structured output.
-
-- Produces findings with controlled severity values.
-
-- Separates evidence from recommendations.
-
-- Writes the AI analysis to a standalone JSON file.
-
-Supported severity values are:
+Examples include:
 
 ```text
-Informational
-Advisory
-Warning
-Critical
+Host name                -> HOST-001
+Cluster name             -> CLUSTER-001
+Domain                   -> DOMAIN-001
+Cluster group            -> GROUP-001
+Cluster resource         -> RESOURCE-001
+Shared volume            -> VOLUME-001
+IPv4 address             -> IP-001
+GUID                     -> GUID-001
+Email / UPN identity     -> IDENTITY-001
+Azure Resource ID        -> AZURE-RESOURCE-ID-001
 ```
+
+Repeated occurrences of the same discovered identifier use the same pseudonym within the report.
+
+This preserves useful relationships such as:
+
+```text
+HOST-001 owns GROUP-001
+GROUP-001 contains RESOURCE-001
+```
+
+without requiring the original infrastructure names to be submitted for AI analysis.
+
+The original input report is not modified by the sanitizer.
+
+### Privacy Boundary
+
+The sanitizer is a targeted privacy control, not a universal anonymization engine.
+
+It protects identifiers covered by the implemented schema-aware and pattern-based rules.
+
+Arbitrary free-form input may contain information that is outside the current detection rules.
+
+For that reason:
+
+- Real production or customer reports should still be reviewed before submission.
+- Credentials, secrets, access tokens, or confidential information must never be intentionally supplied.
+- Public repository samples must remain synthetic or anonymized.
+- Sanitization should not be treated as a substitute for organizational security, privacy, or data-handling requirements.
 
 ## AI Analysis Principles
 
 The model is instructed to:
 
 - Use only evidence explicitly present in the supplied report.
-
 - Avoid inventing missing configuration, events, errors, causes, or remediation.
-
-- Avoid treating a SingleNode topology as unhealthy by itself.
-
-- Avoid assuming that an Offline resource represents a problem without sufficient context.
-
+- Avoid treating a `SingleNode` topology as unhealthy by itself.
+- Avoid assuming that an `Offline` resource represents a problem without sufficient context.
 - Avoid declaring the entire environment healthy based only on successful supplied checks.
-
 - Treat status values as observed evidence unless their meaning is supported by the supplied data.
-
 - Separate observations from conclusions.
-
 - Avoid root-cause claims unless supported by evidence.
-
 - State when the available evidence is insufficient.
 
-AI output should be treated as an analysis aid rather than a replacement for engineering validation.
-
-## Requirements
-
-- Python 3
-
-- Azure CLI
-
-- Access to a Microsoft Foundry project and model deployment
-
-- Microsoft Entra ID permissions required to access the Foundry resource
-
-Install the Python dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-The current dependencies are:
-
-```text
-openai
-azure-identity
-pydantic
-```
-
-## Microsoft Entra ID Authentication
-
-The analyzer does not require an API key in the source code.
-
-For local development, authenticate with Azure CLI:
-
-```powershell
-az login
-```
-
-Verify the active Azure account:
-
-```powershell
-az account show
-```
-
-If required, verify that an access token can be obtained for the Azure AI scope:
-
-```powershell
-az account get-access-token --scope https://ai.azure.com/.default
-```
-
-Do not publish or store the returned access token.
-
-The Python application uses:
-
-```python
-DefaultAzureCredential()
-```
-
-together with a bearer token provider for:
-
-```text
-https://ai.azure.com/.default
-```
-
-During local development, `DefaultAzureCredential` can use the authenticated Azure CLI session.
-
-If authentication fails with an Azure CLI credential message asking you to sign in, refresh the session with:
-
-```powershell
-az login
-```
-
-## Microsoft Foundry Setup
-
-Before running the analyzer, create or use an existing Microsoft Foundry project in your Azure subscription.
-
-### 1. Create a Foundry resource and project
-
-Create a Microsoft Foundry resource and a project that will host the model deployment used by the analyzer.
-
-The analyzer does not require direct access from Foundry to the Azure Local environment. Only the structured health report is sent to the configured model endpoint.
-
-### 2. Deploy a compatible model
-
-From the Foundry model catalog, deploy a model that supports the OpenAI Responses API and structured outputs.
-
-Note the deployment name. This value will later be configured as:
-
-`FOUNDRY_DEPLOYMENT`
-
-The analyzer is intentionally not tied to a hard-coded model deployment.
-
-### 3. Configure Microsoft Entra ID access
-
-Ensure that the identity running the analyzer has the `Foundry User` role on the Foundry resource.
-
-For local development, authenticate the Azure CLI with:
-
-```powershell
-az login
-az account show
-```
-
-The analyzer uses `DefaultAzureCredential` and Microsoft Entra ID authentication rather than storing an API key in the source code.
-
-### 4. Retrieve the Foundry endpoint
-
-Retrieve the OpenAI-compatible endpoint associated with your Foundry resource.
-
-The endpoint follows this general format:
-
-```text
-https://<your-resource>.services.ai.azure.com/openai/v1
-```
-
-This value will later be configured as:
-
-`FOUNDRY_ENDPOINT`
-
-Do not commit resource-specific endpoints, credentials, access tokens, subscription IDs, or tenant IDs to the repository.
-
-
-### Official Microsoft documentation
-
-- [Create Microsoft Foundry resources and a project](https://learn.microsoft.com/en-us/azure/foundry/tutorials/quickstart-create-foundry-resources)
-- [Microsoft Foundry RBAC and roles](https://learn.microsoft.com/en-us/azure/foundry/concepts/rbac-foundry)
-
-## Foundry Configuration
-
-The analyzer reads the Foundry configuration from environment variables.
-
-Set them in the current PowerShell session:
-
-```powershell
-$env:FOUNDRY_ENDPOINT="https://<your-resource>.services.ai.azure.com/openai/v1"
-$env:FOUNDRY_DEPLOYMENT="<your-model-deployment>"
-```
-
-No endpoint or deployment name needs to be hard-coded into the Python source.
-
-## Running the Analyzer
-
-From the repository root, run:
-
-```powershell
-python .\ai\health-analyzer\analyze_health.py .\azure-local\health-checks\examples\sample-health-report.json
-```
-
-The analyzer:
-
-1. Loads and validates the health report.
-
-2. Displays a basic deterministic summary.
-
-3. Authenticates to Microsoft Foundry using Microsoft Entra ID.
-
-4. Sends the structured report to the configured model.
-
-5. Validates the model response against the Pydantic schema.
-
-6. Displays the structured analysis.
-
-7. Writes the analysis to a separate JSON file.
-
-For:
-
-```text
-sample-health-report.json
-```
-
-the generated output is written next to the input health report as:
-
-```text
-sample-health-report-analysis.json
-```
+AI output is an analysis aid and does not replace engineering validation.
 
 ## Structured Output
 
-The current analysis schema contains:
+The analysis uses a Pydantic model with the following structure:
 
 ```text
 HealthAnalysis
@@ -266,6 +144,7 @@ HealthAnalysis
 +-- overall_assessment
 |
 +-- findings[]
+|   |
 |   +-- category
 |   +-- severity
 |   +-- title
@@ -277,60 +156,314 @@ HealthAnalysis
 +-- additional_data_required[]
 ```
 
-Using structured output makes the result suitable for future API, automation, dashboard, or web-application integration without parsing free-form AI text.
+Supported finding severity values are:
+
+```text
+Informational
+Advisory
+Warning
+Critical
+```
+
+Structured output makes the result suitable for API, automation, dashboard, and web-application scenarios without requiring free-form AI text parsing.
+
+## Application Components
+
+### `analyze_health.py`
+
+Implements the core AI analysis workflow.
+
+It loads the health report, authenticates to Microsoft Foundry, requests structured analysis, validates the returned structure with Pydantic, and can write the resulting analysis to JSON.
+
+### `sanitizer.py`
+
+Implements privacy sanitization and consistent pseudonymization before AI processing.
+
+The sanitizer currently handles known infrastructure identities, IPv4 addresses, GUIDs, email/UPN-style identities, and Azure Resource IDs.
+
+### `app.py`
+
+Provides the FastAPI web interface.
+
+The application:
+
+1. Accepts an uploaded JSON report.
+2. Parses the JSON input.
+3. Validates the required top-level report structure.
+4. Sanitizes the report.
+5. Sends only the sanitized report to the AI analysis layer.
+6. Returns the structured analysis to the user.
+
+The application does not require direct connectivity to the Azure Local cluster.
+
+### `test_sanitizer.py`
+
+Contains automated regression tests for the privacy sanitization layer.
+
+### `requirements.txt`
+
+Contains runtime Python dependencies.
+
+### `requirements-dev.txt`
+
+Contains development and test dependencies such as `pytest`.
+
+## Requirements
+
+- Python 3.12 recommended
+- Azure CLI for local Microsoft Entra ID authentication
+- Access to a Microsoft Foundry project and compatible model deployment
+- Appropriate Microsoft Entra ID permissions for the Foundry resource
+
+Install runtime dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Install development/test dependencies:
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+The application currently uses:
+
+```text
+openai
+azure-identity
+pydantic
+fastapi
+uvicorn
+python-multipart
+pytest (development/testing)
+```
+
+## Microsoft Entra ID Authentication
+
+The analyzer does not require a Foundry API key in the source code.
+
+For local development:
+
+```powershell
+az login
+```
+
+The application uses:
+
+```python
+DefaultAzureCredential()
+```
+
+with the Azure AI scope:
+
+```text
+https://ai.azure.com/.default
+```
+
+During local development, `DefaultAzureCredential` can use the authenticated Azure CLI session.
+
+The identity running the analyzer must have the appropriate access to the Microsoft Foundry resource.
+
+Do not publish access tokens, credentials, tenant IDs, subscription IDs, or resource-specific configuration.
+
+## Foundry Configuration
+
+The application reads Foundry configuration from environment variables:
+
+```text
+FOUNDRY_ENDPOINT
+FOUNDRY_DEPLOYMENT
+```
+
+For local development, these can be configured in the current PowerShell session:
+
+```powershell
+$env:FOUNDRY_ENDPOINT="https://<your-resource>.services.ai.azure.com/openai/v1"
+$env:FOUNDRY_DEPLOYMENT="<your-model-deployment>"
+```
+
+No endpoint or model deployment needs to be hard-coded into the Python source.
+
+## Running the Command-Line Analyzer
+
+From the repository root:
+
+```powershell
+python .\ai\health-analyzer\analyze_health.py `
+    .\azure-local\health-checks\examples\sample-health-report.json
+```
+
+The analyzer processes the report and produces structured analysis.
+
+For:
+
+```text
+sample-health-report.json
+```
+
+the resulting analysis can be written as:
+
+```text
+sample-health-report-analysis.json
+```
+
+## Running the FastAPI Application Locally
+
+From:
+
+```text
+ai/health-analyzer
+```
+
+start the application with:
+
+```powershell
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Then open the local application in a browser and submit a compatible Azure Local health report.
+
+The web application validates and sanitizes the uploaded report before AI analysis.
+
+## Azure App Service Architecture
+
+The hosted implementation uses separate deployment and runtime identities.
+
+```text
+GitHub
+   |
+   v
+GitHub Actions
+   |
+   | OIDC / federated authentication
+   v
+Azure Deployment Identity
+   |
+   v
+Azure App Service
+   |
+   | System-assigned Managed Identity
+   v
+Microsoft Foundry
+```
+
+GitHub Actions uses federated authentication to deploy the application.
+
+The running App Service uses its own system-assigned Managed Identity to access Microsoft Foundry.
+
+This separates deployment permissions from runtime AI permissions and avoids storing a Foundry API key in application source code.
+
+Microsoft Entra ID authentication can additionally protect access to the hosted web application.
+
+## Automated Testing
+
+The current sanitizer regression suite contains 12 tests.
+
+The suite verifies:
+
+- Infrastructure identifier pseudonymization
+- Consistent identifier references
+- Complete owner-group pseudonymization
+- Resource and volume pseudonymization
+- Preservation of technical evidence
+- Immutability of the original report
+- Removal of known sensitive identifiers
+- IPv4 pseudonymization
+- GUID pseudonymization
+- Email and UPN-style identity pseudonymization
+- Complete Azure Resource ID pseudonymization
+- Invalid IPv4 candidate handling
+
+Run the tests locally with:
+
+```powershell
+python -m pytest .\ai\health-analyzer\test_sanitizer.py -v
+```
+
+## CI/CD Quality Gate
+
+GitHub Actions performs the following sequence:
+
+```text
+Checkout
+   |
+   v
+Set up Python
+   |
+   v
+Install Runtime + Test Dependencies
+   |
+   v
+Run Sanitizer Regression Tests
+   |
+   v
+Validate Python Application
+   |
+   v
+Build Deployment Artifact
+   |
+   v
+Azure Authentication via OIDC
+   |
+   v
+Deploy to Azure App Service
+```
+
+The deployment job depends on the build and test job.
+
+If the sanitizer regression tests fail, deployment does not proceed.
+
+This provides a simple automated quality gate for privacy-related changes.
 
 ## Example Files
 
-`sample-health-report.json` contains anonymized example health data.
+The repository contains synthetic/anonymized examples demonstrating the workflow:
 
-`sample-health-report-analysis.json` demonstrates the structured AI output generated from the sample report.
+```text
+azure-local/health-checks/examples/sample-health-report.json
+ai/health-analyzer/examples/sample-health-report-analysis.json
+```
 
-The example data is intended only to demonstrate the analyzer workflow.
+Example files must not contain customer or confidential information.
 
 ## Security and Privacy
 
-Do not submit or publish health reports containing sensitive customer or production information without appropriate review and sanitization.
+Never commit:
 
-Before using this approach with real environments, consider removing or anonymizing information such as:
+- Customer data
+- Credentials
+- API keys
+- Access tokens
+- Tenant identifiers
+- Subscription identifiers
+- Confidential Microsoft information
+- Internal tools or procedures
+- Proprietary code
+- Non-public troubleshooting material
 
-- Host names
+The sanitizer reduces exposure of identifiers covered by its current rules, but it does not guarantee complete anonymization of arbitrary input.
 
-- Cluster names
-
-- Domain names
-
-- Resource names
-
-- Infrastructure identifiers
-
-- Other environment-specific information
-
-Never commit credentials, access tokens, API keys, customer data, or confidential information to the repository.
+Human review remains part of the security and privacy boundary.
 
 ## Future Direction
 
 Potential next steps include:
 
-- A sanitization layer before AI processing.
+- Additional privacy edge-case handling
+- Additional deterministic health rules before AI interpretation
+- Retrieval-Augmented Generation using authoritative public Microsoft documentation
+- Historical health-report comparison
+- Trend analysis
+- Additional application observability
+- Controlled agentic investigation workflows
 
-- Additional deterministic health rules.
-
-- FastAPI integration.
-
-- Azure App Service deployment.
-
-- Managed Identity authentication for the hosted application.
-
-- Optional grounding with authoritative public Microsoft documentation.
-
-- Historical report comparison and trend analysis.
-
-For an Azure-hosted implementation, Managed Identity is the preferred direction so that application credentials do not need to be stored in source code or configuration files.
+These are future areas of exploration and are not presented as currently implemented functionality.
 
 ## Disclaimer
 
-This project is intended for learning, experimentation, and technical demonstration.
+This project is intended for personal learning, experimentation, and technical demonstration.
 
-It is not an official Microsoft support tool and does not replace official product documentation, support processes, or engineering investigation.
+It is not an official Microsoft support tool and does not replace official product documentation, support processes, security review, or engineering investigation.
 
 Public examples must not contain customer data, confidential Microsoft information, proprietary code, internal tools, or non-public troubleshooting procedures.
