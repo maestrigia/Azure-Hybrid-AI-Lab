@@ -26,11 +26,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r ai/health-analyzer/requirements.txt
+          pip install -r ai/health-analyzer/requirements-dev.txt
+
+      - name: Run sanitizer regression tests
+        run: |
+          python -m pytest ai/health-analyzer/test_sanitizer.py -v
 
       - name: Validate Python application
         run: |
           python -m py_compile ai/health-analyzer/app.py
           python -m py_compile ai/health-analyzer/analyze_health.py
+          python -m py_compile ai/health-analyzer/sanitizer.py
 
       - name: Upload application artifact
         uses: actions/upload-artifact@v4
