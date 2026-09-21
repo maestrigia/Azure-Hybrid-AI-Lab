@@ -5,11 +5,12 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse
 
 from analyze_health import analyze_with_foundry
+from sanitizer import sanitize_report
 
 
 app = FastAPI(
     title="Azure Local Health Analyzer",
-    version="1.0.0"
+    version="1.1.0",
 )
 
 
@@ -21,6 +22,7 @@ async def home():
     <head>
         <title>Azure Local Health Analyzer</title>
         <meta charset="utf-8">
+
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -59,6 +61,14 @@ async def home():
                 font-size: 0.9em;
                 color: #666;
             }
+
+            .privacy-note {
+                margin-top: 20px;
+                padding: 15px;
+                background: #f5f5f5;
+                border-left: 4px solid #777;
+                font-size: 0.9em;
+            }
         </style>
     </head>
 
@@ -91,6 +101,12 @@ async def home():
 
             </form>
 
+            <div class="privacy-note">
+                Infrastructure identifiers covered by the health-report
+                schema are pseudonymized before the report is submitted
+                for AI-assisted analysis.
+            </div>
+
             <p class="note">
                 AI-assisted analysis is based only on the evidence
                 contained in the uploaded health report.
@@ -107,16 +123,28 @@ async def home():
 async def analyze(file: UploadFile = File(...)):
 
     try:
+        # --------------------------------------------------------------
+        # Read and parse the uploaded JSON report.
+        # --------------------------------------------------------------
         raw_content = await file.read()
 
         report = json.loads(
             raw_content.decode("utf-8-sig")
         )
 
+        if not isinstance(report, dict):
+            raise ValueError(
+                "Invalid Azure Local health report. "
+                "The JSON root must be an object."
+            )
+
+        # --------------------------------------------------------------
+        # Validate the minimum expected report structure.
+        # --------------------------------------------------------------
         required_sections = [
             "Metadata",
             "Cluster",
-            "AzureLocal"
+            "AzureLocal",
         ]
 
         missing_sections = [
@@ -132,14 +160,35 @@ async def analyze(file: UploadFile = File(...)):
                 + ", ".join(missing_sections)
             )
 
-        analysis = analyze_with_foundry(report)
+        # --------------------------------------------------------------
+        # Privacy boundary
+        #
+        # The original uploaded report is used only for local parsing
+        # and validation.
+        #
+        # Infrastructure identifiers covered by the report schema are
+        # pseudonymized before the report is passed to the AI analyzer.
+        # --------------------------------------------------------------
+        sanitized_report = sanitize_report(report)
 
+        # IMPORTANT:
+        # Only the sanitized report is submitted to Microsoft Foundry.
+        analysis = analyze_with_foundry(
+            sanitized_report
+        )
+
+        # --------------------------------------------------------------
+        # Convert the structured Pydantic result to JSON for display.
+        # --------------------------------------------------------------
         analysis_json = analysis.model_dump_json(
             indent=2
         )
 
         # Escape dynamic content before rendering it in HTML.
-        safe_analysis_json = html.escape(analysis_json)
+        safe_analysis_json = html.escape(
+            analysis_json
+        )
+
         safe_filename = html.escape(
             file.filename or "uploaded-report.json"
         )
@@ -150,6 +199,7 @@ async def analyze(file: UploadFile = File(...)):
         <head>
             <title>Azure Local Health Analysis</title>
             <meta charset="utf-8">
+
             <style>
                 body {{
                     font-family: Arial, sans-serif;
@@ -168,6 +218,14 @@ async def analyze(file: UploadFile = File(...)):
                     white-space: pre-wrap;
                 }}
 
+                .privacy-note {{
+                    margin: 20px 0;
+                    padding: 15px;
+                    background: #f5f5f5;
+                    border-left: 4px solid #777;
+                    font-size: 0.9em;
+                }}
+
                 a {{
                     display: inline-block;
                     margin-top: 20px;
@@ -184,6 +242,11 @@ async def analyze(file: UploadFile = File(...)):
                 <strong>{safe_filename}</strong>
             </p>
 
+            <div class="privacy-note">
+                Infrastructure identifiers covered by the health-report
+                schema were pseudonymized before AI-assisted analysis.
+            </div>
+
             <pre>{safe_analysis_json}</pre>
 
             <a href="/">
@@ -196,7 +259,9 @@ async def analyze(file: UploadFile = File(...)):
 
     except Exception as error:
 
-        safe_error = html.escape(str(error))
+        safe_error = html.escape(
+            str(error)
+        )
 
         return f"""
         <!DOCTYPE html>
