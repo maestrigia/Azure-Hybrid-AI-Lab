@@ -236,3 +236,29 @@ def test_sensitive_identifiers_are_not_present_in_output():
 
     for value in sensitive_values:
         assert value.lower() not in serialized.lower()
+
+def test_ipv4_addresses_are_pseudonymized_consistently():
+    report = build_test_report()
+
+    report["Cluster"]["Nodes"][0]["ManagementAddress"] = "10.20.30.40"
+    report["Cluster"]["Nodes"][1]["ManagementAddress"] = "10.20.30.41"
+    report["Cluster"]["Resources"][0]["DiagnosticMessage"] = (
+        "Connection from 10.20.30.40 to 10.20.30.41 succeeded"
+    )
+
+    sanitized = sanitize_report(report)
+
+    nodes = sanitized["Cluster"]["Nodes"]
+    diagnostic_message = sanitized["Cluster"]["Resources"][0][
+        "DiagnosticMessage"
+    ]
+
+    assert nodes[0]["ManagementAddress"] == "IP-001"
+    assert nodes[1]["ManagementAddress"] == "IP-002"
+
+    assert "IP-001" in diagnostic_message
+    assert "IP-002" in diagnostic_message
+
+    serialized = str(sanitized)
+    assert "10.20.30.40" not in serialized
+    assert "10.20.30.41" not in serialized

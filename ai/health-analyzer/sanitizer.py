@@ -1,4 +1,5 @@
 import copy
+import ipaddress
 import re
 from typing import Any
 
@@ -12,6 +13,10 @@ class ReportSanitizer:
     timestamps, topology, and update information is preserved.
     """
 
+    _IPV4_CANDIDATE_PATTERN = re.compile(
+        r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])"
+    )
+
     def __init__(self) -> None:
         self._replacements: dict[str, str] = {}
 
@@ -21,6 +26,7 @@ class ReportSanitizer:
         self._group_counter = 0
         self._resource_counter = 0
         self._volume_counter = 0
+        self._ip_counter = 0
 
     def sanitize(self, report: dict[str, Any]) -> dict[str, Any]:
         """
@@ -30,6 +36,7 @@ class ReportSanitizer:
         sanitized = copy.deepcopy(report)
 
         self._discover_identifiers(sanitized)
+        self._discover_ipv4_addresses(sanitized)
 
         return self._replace_recursive(sanitized)
 
@@ -232,6 +239,50 @@ class ReportSanitizer:
                     volume_name,
                     f"VOLUME-{self._volume_counter:03d}",
                 )
+
+
+
+    def _discover_ipv4_addresses(
+        self,
+        value: Any,
+    ) -> None:
+        """
+        Recursively discover valid IPv4 addresses in string values.
+        """
+
+        if isinstance(value, dict):
+            for item in value.values():
+                self._discover_ipv4_addresses(item)
+            return
+
+        if isinstance(value, list):
+            for item in value:
+                self._discover_ipv4_addresses(item)
+            return
+
+        if not isinstance(value, str):
+            return
+
+        for match in self._IPV4_CANDIDATE_PATTERN.finditer(value):
+            candidate = match.group(0)
+
+            try:
+                address = ipaddress.ip_address(candidate)
+            except ValueError:
+                continue
+
+            if not isinstance(address, ipaddress.IPv4Address):
+                continue
+
+            if candidate in self._replacements:
+                continue
+
+            self._ip_counter += 1
+
+            self._add_replacement(
+                candidate,
+                f"IP-{self._ip_counter:03d}",
+            )
 
     def _replace_string(
         self,
