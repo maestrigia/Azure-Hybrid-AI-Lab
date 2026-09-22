@@ -12,6 +12,12 @@ The goal is not to replace infrastructure troubleshooting or engineering judgmen
 
 The goal is to explore how structured infrastructure evidence can be collected, validated, sanitized, and safely used by AI-assisted operational workflows.
 
+## Deployment
+
+For a complete step-by-step guide to reproducing the hosted Azure reference deployment, including Microsoft Foundry, Azure App Service, Managed Identity, Microsoft Entra ID authentication, GitHub Actions, and OIDC:
+
+**[Azure Deployment Guide](./DEPLOYMENT.md)**
+
 ## Featured Project - Azure Local AI Health Analyzer
 
 The Azure Local AI Health Analyzer is an end-to-end lab that combines PowerShell-based infrastructure data collection with a Python analysis service and Microsoft Foundry.
