@@ -16,7 +16,7 @@ The goal is to explore how structured infrastructure evidence can be collected, 
 
 For a complete step-by-step guide to reproducing the hosted Azure reference deployment, including Microsoft Foundry, Azure App Service, Managed Identity, Microsoft Entra ID authentication, GitHub Actions, and OIDC:
 
-**[Azure Deployment Guide](./DEPLOYMENT.md)**
+**[Azure Deployment Guide](./ai/health-analyzer/DEPLOYMENT.md)**
 
 ## Featured Project - Azure Local AI Health Analyzer
 
