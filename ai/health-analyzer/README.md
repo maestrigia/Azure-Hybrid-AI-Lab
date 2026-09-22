@@ -6,6 +6,12 @@ The project combines deterministic infrastructure evidence collection, privacy s
 
 The analyzer does not connect directly to an Azure Local cluster. It consumes a structured JSON health report generated separately by the Azure Local health collector.
 
+## Deployment
+
+For a complete step-by-step guide to reproducing the hosted Azure reference deployment:
+
+**[Azure Deployment Guide](./DEPLOYMENT.md)**
+
 ## Architecture
 
 ```text
