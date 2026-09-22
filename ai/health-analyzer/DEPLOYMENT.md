@@ -1,4 +1,4 @@
-﻿# Azure Local AI Health Analyzer --- Azure Deployment Guide
+# Azure Local AI Health Analyzer --- Azure Deployment Guide
 
 This guide shows how to reproduce the hosted Azure reference deployment
 for the Azure Local AI Health Analyzer.
@@ -51,24 +51,24 @@ No Foundry API key is required by the application.
 
 ``` text
 ai/health-analyzer/
-â”œâ”€â”€ analyze_health.py
-â”œâ”€â”€ app.py
-â”œâ”€â”€ sanitizer.py
-â”œâ”€â”€ test_sanitizer.py
-â”œâ”€â”€ requirements.txt
-â”œâ”€â”€ requirements-dev.txt
-â”œâ”€â”€ README.md
-â”œâ”€â”€ DEPLOYMENT.md
-â””â”€â”€ images/
-    â””â”€â”€ azure-local-health-analyzer-web.png
+|-- analyze_health.py
+|-- app.py
+|-- sanitizer.py
+|-- test_sanitizer.py
+|-- requirements.txt
+|-- requirements-dev.txt
+|-- README.md
+|-- DEPLOYMENT.md
+\-- images/
+    \-- azure-local-health-analyzer-web.png
 
 azure-local/health-checks/
-â”œâ”€â”€ Get-AzureLocalHealthSummary-v2.ps1
-â””â”€â”€ examples/
-    â””â”€â”€ sample-health-report.json
+|-- Get-AzureLocalHealthSummary-v2.ps1
+\-- examples/
+    \-- sample-health-report.json
 
 .github/workflows/
-â””â”€â”€ main_azure-local-health-analyzer.yml
+\-- main_azure-local-health-analyzer.yml
 ```
 
 ## 1. Prerequisites
@@ -796,13 +796,13 @@ Recommended screenshot set:
 
 ``` text
 ai/health-analyzer/images/deployment/
-â”œâ”€â”€ 01-foundry-project.png
-â”œâ”€â”€ 02-model-deployment.png
-â”œâ”€â”€ 03-app-service-overview.png
-â”œâ”€â”€ 04-system-managed-identity.png
-â”œâ”€â”€ 05-foundry-rbac.png
-â”œâ”€â”€ 06-entra-authentication.png
-â””â”€â”€ 07-github-deployment-center.png
+|-- 01-foundry-project.png
+|-- 02-model-deployment.png
+|-- 03-app-service-overview.png
+|-- 04-system-managed-identity.png
+|-- 05-foundry-rbac.png
+|-- 06-entra-authentication.png
+\-- 07-github-deployment-center.png
 ```
 
 Only add a screenshot to the guide after it has been reviewed for
