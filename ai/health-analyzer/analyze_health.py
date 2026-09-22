@@ -7,6 +7,7 @@ from typing import Literal
 from openai import OpenAI
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from pydantic import BaseModel
+from sanitizer import sanitize_report
 
 
 FOUNDRY_ENDPOINT = os.getenv("FOUNDRY_ENDPOINT")
@@ -164,10 +165,15 @@ def main():
         display_summary(report)
 
         print()
+        print("Applying privacy sanitization...")
+        sanitized_report = sanitize_report(report)
+        print("Privacy sanitization completed.")
+
+        print()
         print("Running structured AI analysis with Microsoft Foundry...")
         print()
 
-        analysis = analyze_with_foundry(report)
+        analysis = analyze_with_foundry(sanitized_report)
 
         print("Structured AI Health Analysis")
         print("-----------------------------")
